@@ -51,31 +51,15 @@
 
 <h2>2. COMPONENT ARCHITECTURE SCHEMATIC</h2>
 
-<pre>
- ┌────────────────────────────────────────────────────────────────────────┐
- │                      RFSC PROTOCOL ARCHITECTURE                        │
- └────────────────────────────────────────────────────────────────────────┘
-          │                                              │
-          ▼                                              ▼
- ┌─────────────────────────────┐                ┌─────────────────────────────┐
- │    CONSENSUS & COMPUTE      │                │      STORAGE & STATE        │
- ├─────────────────────────────┤                ├─────────────────────────────┤
- │ • Tier 1: GEMM + GELU       │                │ • NenoDB LSM Key-Value DB   │
- │ • Tier 2: MHA + RMSNorm     │                │ • 64KB Ring-Buffered WAL    │
- │ • Difficulty Retargeting    │                │ • RAM Pinning (pin())       │
- │ • UTXO Double-Spend Guard   │                │ • Atomic State Checksums    │
- └─────────────────────────────┘                └─────────────────────────────┘
-          │                                              │
-          ▼                                              ▼
- ┌─────────────────────────────┐                ┌─────────────────────────────┐
- │       P2P WIRE PROTOCOL     │                │      JSON-RPC DAEMON        │
- ├─────────────────────────────┤                ├─────────────────────────────┤
- │ • Magic: 0x52465343 (RFSC)  │                │ • RPC Port 8332 HTTP        │
- │ • Direct Linux Syscalls     │                │ • Miner Block Templates     │
- │ • Zero-Copy TCP Streaming   │                │ • Mempool Broadcast Endpoint│
- │ • Gossip Transaction Relay  │                │ • Exchange Wallet Balance   │
- └─────────────────────────────┘                └─────────────────────────────┘
-</pre>
+<p align="center">
+  <img src="docs/architecture.png" alt="RFSC Node Component Architecture" width="100%" />
+</p>
+
+| Architectural Subsystem | Internal Components | Inter-Module Communication | Functional Mechanics |
+| :--- | :--- | :--- | :--- |
+| Network & Wire Interface | P2P Socket (Port 8333), RPC Server (Port 8332) | Linux socket syscalls, Zero-copy TCP buffer | Ingests binary frames, handles RPC requests, broadcasts block gossip |
+| Core Processing Engine | Consensus Kernel, PoUW AI Engine, Cryptographic Layer | Memory-mapped tensor buffers, secp256k1 context | Evaluates block validity, verifies ECDSA signatures, enforces halving |
+| Data Storage & Ledger | NenoDB WAL Engine, UTXO Set Cache, Treasury Vault | Ring-buffered disk log, RAM-pinned hash map | Commits atomic transactions, pins unspent outputs, checks 100M Roc threshold |
 
 ---
 
