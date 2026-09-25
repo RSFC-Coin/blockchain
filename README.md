@@ -1,8 +1,8 @@
 <div align="center">
 
-<h1>RFSC PROTOCOL SPECIFICATION AND REFERENCE NODE</h1>
+<h1>RFSC DOC AND REFERENCE NODE</h1>
 
-<p>Native Layer-1 Peer-to-Peer Settlement Ledger Implemented in RunForMe (RFM) AOT Core</p>
+<p>Ledger Implemented in RunForMe (RFM) AOT Core</p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Runtime-RFM%20Native%20AOT-0969da?style=flat-square&logo=c" alt="Runtime" />
