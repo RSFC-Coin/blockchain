@@ -51,55 +51,58 @@
 
 ```mermaid
 flowchart TD
-    subgraph NET["Ingress and Wire Protocol"]
-        WIRE["P2P TCP Wire Framing<br/>Magic: 0x52465343"]
-        RPC["JSON-RPC 2.0 Daemon<br/>Port 8332 HTTP"]
-        MEM["Mempool Queue<br/>Double-Spend Validation"]
+    subgraph INGRESS["1. Network and Client Ingress"]
+        CLIENT[/RPC Client or Exchange/]
+        PEER[/Remote P2P Peer/]
+        RPCD[JSON-RPC 2.0 Server: Port 8332]
+        P2PD[P2P Wire Socket: Port 8333 Magic 0x52465343]
     end
 
-    subgraph CORE["Consensus and PoUW AI Kernel"]
-        T1["Tier 1 Micro-Batch Nonce<br/>NumRFM GEMM (W x X) + GELU"]
-        T2["Tier 2 Macro-Epoch Checkpoint<br/>Transformer MHA (2 Heads) + RMSNorm"]
-        RETARGET["Difficulty Adjustment<br/>2,016 Blocks Target Retargeting"]
+    subgraph TXPIPE["2. Transaction Processing Engine"]
+        UTXOCHK{{"UTXO Lookup: Inputs Exist?"}}
+        SIGCHK{{"ECDSA secp256k1: Signature Valid?"}}
+        MEMPOOL[(Mempool Queue: Fee-per-Byte Sort)]
     end
 
-    subgraph CRYPTO["Cryptographic Primitives"]
-        SECP["secp256k1 Curve Engine<br/>32B Private Key / 33B Pubkey"]
-        BECH["Bech32 BIP-173 Format<br/>HRP Prefix: rfsc1"]
-        ZK["Zero-Knowledge Pedersen<br/>C = v*G + r*H Masking"]
-        DIGEST["Blake3 + SHA-256d Engine<br/>ai_loss_checksum Validation"]
+    subgraph CONSENSUS["3. PoUW Block Generation and Consensus"]
+        TEMPL[Block Template: Merkle Root + PrevHash]
+        WORKER[Cluster Worker: Nonce Sub-Range Search]
+        TENSOR[PoUW Execution: NumRFM GEMM + GELU Checksum]
+        HASHCHK{{"PoW Check: Block Hash meets Target?"}}
     end
 
-    subgraph STORAGE["Storage Subsystem: NenoDB WAL"]
-        WAL["64KB Ring-Buffered WAL<br/>Zero-Fsync Sequential Writes"]
-        UTXO["RAM-Pinned UTXO Set<br/>Zero-I/O In-Memory pin()"]
-        VAULT["Master Treasury Vault<br/>100M Roc (1 RFSC) Threshold"]
+    subgraph STORAGE["4. Ledger Persistence and State"]
+        WAL[(NenoDB Ring-Buffered WAL: 64KB Disk Log)]
+        UTXO[(Active UTXO Set: RAM-Pinned Zero-IO Cache)]
+        TREASURY[(Master Treasury: 100M Roc Settlement Gate)]
     end
 
-    subgraph CLUSTER["Multi-Worker Mining Cluster"]
-        COORD["Mining Coordinator Node<br/>Nonce Space Partitioning"]
-        W1["Worker Node A<br/>Range 0x0000..0x3FFF"]
-        W2["Worker Node B<br/>Range 0x4000..0x7FFF"]
-        W3["Worker Node C<br/>Range 0x8000..0xBFFF"]
-    end
+    CLIENT -->|JSON-RPC Request| RPCD
+    PEER -->|Binary Wire Frame| P2PD
+    RPCD -->|Parsed Tx| UTXOCHK
+    P2PD -->|Relayed Tx| UTXOCHK
+    UTXOCHK -->|Inputs Present| SIGCHK
+    SIGCHK -->|Valid Signature| MEMPOOL
 
-    WIRE <--> CORE
-    RPC --> MEM
-    MEM --> CORE
-    CORE <--> CRYPTO
-    CORE <--> STORAGE
-    COORD --> CORE
-    COORD --> W1
-    COORD --> W2
-    COORD --> W3
-    STORAGE --> VAULT
+    MEMPOOL -->|Select Transactions| TEMPL
+    TEMPL -->|Candidate Block Header| WORKER
+    WORKER -->|Compute Workload| TENSOR
+    TENSOR -->|ai_loss_checksum| HASHCHK
+
+    HASHCHK -->|Target Not Met| WORKER
+    HASHCHK -->|Target Met: Propagate| P2PD
+    HASHCHK -->|Target Met: Commit| WAL
+
+    WAL -->|State Sync| UTXO
+    WAL -->|Miner Subsidy| TREASURY
 ```
 
-| Architectural Subsystem | Internal Components | Inter-Module Communication | Functional Mechanics |
+| Pipeline Stage | Subsystem Modules | Core Operations | Output Artifact |
 | :--- | :--- | :--- | :--- |
-| Network & Wire Interface | P2P Socket (Port 8333), RPC Server (Port 8332) | Linux socket syscalls, Zero-copy TCP buffer | Ingests binary frames, handles RPC requests, broadcasts block gossip |
-| Core Processing Engine | Consensus Kernel, PoUW AI Engine, Cryptographic Layer | Memory-mapped tensor buffers, secp256k1 context | Evaluates block validity, verifies ECDSA signatures, enforces halving |
-| Data Storage & Ledger | NenoDB WAL Engine, UTXO Set Cache, Treasury Vault | Ring-buffered disk log, RAM-pinned hash map | Commits atomic transactions, pins unspent outputs, checks 100M Roc threshold |
+| Ingress Transport | src/net/p2p_socket.rfm, src/rpc_server.rfm | Linux non-blocking socket polling, JSON-RPC 2.0 dispatch | Deserialized transaction and block payloads |
+| Verification Engine | src/transaction.rfm, src/crypto.rfm, src/mempool.rfm | secp256k1 ECDSA verification, UTXO double-spend check | Validated transactions ordered by fee density |
+| Consensus Engine | src/core.rfm, src/consensus/pouw_dual.rfm | Candidate header assembly, NumRFM GEMM tensor trace, difficulty test | Sealed block header with ai_loss_checksum |
+| Persistence Engine | src/utxo_set.rfm, NenoDB WAL Engine | Ring-buffered WAL disk append, in-memory RAM pinning via pin() | ACID-committed UTXO state and treasury ledger |
 
 ---
 
@@ -250,4 +253,4 @@ flowchart TD
 | Release Binary | rsc build --release | target/release/rfsc-cli |
 | Debug Binary | rsc build | target/debug/rfsc-cli |
 | Run In-Tree | rsc run --release -- [args] | Executes target/release/rfsc-cli directly |
-| Test Suites | rsc test | Executes all 8 unit and integration test suites |
+| Test Suites | rsc test | Executes all 8 unit and integration test suites
