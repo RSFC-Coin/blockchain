@@ -1,14 +1,13 @@
-<div align="center">
-
+<div align="center">                                                                      
 <h1>RFSC PROTOCOL SPECIFICATION AND REFERENCE NODE</h1>
 
 <p>Native Layer-1 Peer-to-Peer Settlement Ledger Implemented in RunForMe (RFM) AOT Core</p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Runtime-RFM%20Native%20AOT-0969da?style=flat-square&logo=c" alt="Runtime" />
-  <img src="https://img.shields.io/badge/Backend-LLVM%2023%20%2F%20Clang--23-24292f?style=flat-square&logo=llvm" alt="LLVM" />                                                        <img src="https://img.shields.io/badge/Consensus-Dual--Tier%20PoUW%20AI-cf222e?style=flat-square" alt="PoUW" />
-  <img src="https://img.shields.io/badge/Ledger-NenoDB%20Ring--WAL-1a7f37?style=flat-square" alt="NenoDB" />                                                                          <img src="https://img.shields.io/badge/Crypto-secp256k1%20%7C%20Blake3-8250df?style=flat-square" alt="Crypto" />
-  <img src="https://img.shields.io/badge/Test%20Suites-8%20Passed%20%7C%20100%25-brightgreen?style=flat-square" alt="Tests" />
+  <img src="https://img.shields.io/badge/Backend-LLVM%2023%20%2F%20Clang--23-24292f?style=flat-square&logo=llvm" alt="LLVM" />
+  <img src="https://img.shields.io/badge/Consensus-Dual--Tier%20PoUW%20AI-cf222e?style=flat-square" alt="PoUW" />                                                                     <img src="https://img.shields.io/badge/Ledger-NenoDB%20Ring--WAL-1a7f37?style=flat-square" alt="NenoDB" />
+  <img src="https://img.shields.io/badge/Crypto-secp256k1%20%7C%20Blake3-8250df?style=flat-square" alt="Crypto" />                                                                    <img src="https://img.shields.io/badge/Test%20Suites-8%20Passed%20%7C%20100%25-brightgreen?style=flat-square" alt="Tests" />
 </p>
 
 <table align="center">
