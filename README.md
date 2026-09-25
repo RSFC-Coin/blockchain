@@ -1,19 +1,19 @@
-<div align="center">
-
+<div align="center">                                                                      
 <h1>RFSC PROTOCOL SPECIFICATION AND REFERENCE NODE</h1>
 
 <p>Native Layer-1 Peer-to-Peer Settlement Ledger Implemented in RunForMe (RFM) AOT Core</p>
 
-<p align="center">                                                                          <img src="https://img.shields.io/badge/Runtime-RFM%20Native%20AOT-0969da?style=flat-square&logo=c" alt="Runtime" />
+<p align="center">
+  <img src="https://img.shields.io/badge/Runtime-RFM%20Native%20AOT-0969da?style=flat-square&logo=c" alt="Runtime" />
   <img src="https://img.shields.io/badge/Backend-LLVM%2023%20%2F%20Clang--23-24292f?style=flat-square&logo=llvm" alt="LLVM" />
-  <img src="https://img.shields.io/badge/Consensus-Dual--Tier%20PoUW%20AI-cf222e?style=flat-square" alt="PoUW" />
-  <img src="https://img.shields.io/badge/Ledger-NenoDB%20Ring--WAL-1a7f37?style=flat-square" alt="NenoDB" />
-  <img src="https://img.shields.io/badge/Crypto-secp256k1%20%7C%20Blake3-8250df?style=flat-square" alt="Crypto" />
-  <img src="https://img.shields.io/badge/Test%20Suites-8%20Passed%20%7C%20100%25-brightgreen?style=flat-square" alt="Tests" />
-</p>                                                                                      
+  <img src="https://img.shields.io/badge/Consensus-Dual--Tier%20PoUW%20AI-cf222e?style=flat-square" alt="PoUW" />                                                                     <img src="https://img.shields.io/badge/Ledger-NenoDB%20Ring--WAL-1a7f37?style=flat-square" alt="NenoDB" />
+  <img src="https://img.shields.io/badge/Crypto-secp256k1%20%7C%20Blake3-8250df?style=flat-square" alt="Crypto" />                                                                    <img src="https://img.shields.io/badge/Test%20Suites-8%20Passed%20%7C%20100%25-brightgreen?style=flat-square" alt="Tests" />
+</p>
+
 <table align="center">
   <tr>
-    <td align="center"><b>Toolchain</b><br><code>rsc 0.1.0</code></td>                        <td align="center"><b>Max Hard Cap</b><br><code>21,000,000 RFSC</code></td>
+    <td align="center"><b>Toolchain</b><br><code>rsc 0.1.0</code></td>
+    <td align="center"><b>Max Hard Cap</b><br><code>21,000,000 RFSC</code></td>
     <td align="center"><b>Base Precision</b><br><code>10^8 Roc (8 Decimals)</code></td>
     <td align="center"><b>Subsidy Model</b><br><code>50 >> (Height / 210,000)</code></td>
     <td align="center"><b>Wire Magic</b><br><code>0x52465343 (ASCII RFSC)</code></td>
@@ -47,44 +47,38 @@
 <h2>2. COMPONENT ARCHITECTURE SCHEMATIC</h2>
 
 ```mermaid
-%%{init: {"theme": "dark", "themeVariables": {"fontFamily": "ui-monospace, monospace", "primaryColor": "rgb(30,41,59)", "primaryTextColor": "rgb(248,250,252)", "primaryBorderColor": "rgb(56,189,248)", "lineColor": "rgb(148,163,184)", "secondaryColor": "rgb(15,23,42)", "tertiaryColor": "rgb(15,23,42)"}}}%%
 flowchart TD
-    classDef ingressStyle fill:rgb(15,23,42),stroke:rgb(56,189,248),stroke-width:2px,color:rgb(248,250,252)
-    classDef txStyle fill:rgb(24,24,27),stroke:rgb(168,85,247),stroke-width:2px,color:rgb(248,250,252)
-    classDef consensusStyle fill:rgb(15,23,42),stroke:rgb(16,185,129),stroke-width:2px,color:rgb(248,250,252)
-    classDef storageStyle fill:rgb(24,24,27),stroke:rgb(245,158,11),stroke-width:2px,color:rgb(248,250,252)
-    classDef decisionStyle fill:rgb(30,41,59),stroke:rgb(251,191,36),stroke-width:2px,color:rgb(254,243,199)
+    classDef ingress fill:midnightblue,stroke:cyan,stroke-width:2px,color:white
+    classDef txpipe fill:indigo,stroke:orchid,stroke-width:2px,color:white
+    classDef consensus fill:darkgreen,stroke:springgreen,stroke-width:2px,color:white
+    classDef storage fill:darkslategray,stroke:gold,stroke-width:2px,color:white
+    classDef check fill:navy,stroke:gold,stroke-width:2px,color:white
 
-    subgraph INGRESS["1. Network and Client Ingress"]
-        CLIENT[/RPC Client or Exchange/]:::ingressStyle
-        PEER[/Remote P2P Peer/]:::ingressStyle
-        RPCD[JSON-RPC 2.0 Server: Port 8332]:::ingressStyle
-        P2PD[P2P Wire Socket: Port 8333 Magic 0x52465343]:::ingressStyle
+    subgraph INGRESS ["1. Network and Client Ingress"]
+        CLIENT["RPC Client or Exchange"]:::ingress
+        PEER["Remote P2P Peer"]:::ingress
+        RPCD["JSON-RPC 2.0 Server: Port 8332"]:::ingress
+        P2PD["P2P Wire Socket: Port 8333 Magic 0x52465343"]:::ingress
     end
 
-    subgraph TXPIPE["2. Transaction Processing Engine"]
-        UTXOCHK{{"UTXO Lookup: Inputs Exist?"}}:::decisionStyle
-        SIGCHK{{"ECDSA secp256k1: Signature Valid?"}}:::decisionStyle
-        MEMPOOL[(Mempool Queue: Fee-per-Byte Sort)]:::txStyle
+    subgraph TXPIPE ["2. Transaction Processing Engine"]
+        UTXOCHK{"UTXO Lookup: Inputs Exist?"}:::check
+        SIGCHK{"ECDSA secp256k1: Valid Signature?"}:::check
+        MEMPOOL[("Mempool Queue: Fee-per-Byte Sort")]:::txpipe
     end
 
-    subgraph CONSENSUS["3. PoUW Block Generation and Consensus"]
-        TEMPL[Block Template: Merkle Root + PrevHash]:::consensusStyle
-        WORKER[Cluster Worker: Nonce Sub-Range Search]:::consensusStyle
-        TENSOR[PoUW Execution: NumRFM GEMM + GELU Checksum]:::consensusStyle
-        HASHCHK{{"PoW Check: Block Hash meets Target?"}}:::decisionStyle
+    subgraph CONSENSUS ["3. PoUW Block Generation and Consensus"]
+        TEMPL["Block Template: Merkle Root + PrevHash"]:::consensus
+        WORKER["Cluster Worker: Nonce Sub-Range Search"]:::consensus
+        TENSOR["PoUW Execution: NumRFM GEMM + GELU Checksum"]:::consensus
+        HASHCHK{"PoW Check: Block Hash meets Target?"}:::check
     end
 
-    subgraph STORAGE["4. Ledger Persistence and State"]
-        WAL[(NenoDB Ring-Buffered WAL: 64KB Disk Log)]:::storageStyle
-        UTXO[(Active UTXO Set: RAM-Pinned Zero-IO Cache)]:::storageStyle
-        TREASURY[(Master Treasury: 100M Roc Settlement Gate)]:::storageStyle
+    subgraph STORAGE ["4. Ledger Persistence and State"]
+        WAL[("NenoDB Ring-Buffered WAL: 64KB Disk Log")]:::storage
+        UTXO[("Active UTXO Set: RAM-Pinned Zero-IO Cache")]:::storage
+        TREASURY[("Master Treasury: 100M Roc Settlement Gate")]:::storage
     end
-
-    style INGRESS fill:rgb(2,6,23),stroke:rgb(56,189,248),stroke-width:1px,stroke-dasharray: 4 4,color:rgb(148,163,184)
-    style TXPIPE fill:rgb(9,9,11),stroke:rgb(168,85,247),stroke-width:1px,stroke-dasharray: 4 4,color:rgb(148,163,184)
-    style CONSENSUS fill:rgb(2,6,23),stroke:rgb(16,185,129),stroke-width:1px,stroke-dasharray: 4 4,color:rgb(148,163,184)
-    style STORAGE fill:rgb(9,9,11),stroke:rgb(245,158,11),stroke-width:1px,stroke-dasharray: 4 4,color:rgb(148,163,184)
 
     CLIENT -->|JSON-RPC Request| RPCD
     PEER -->|Binary Wire Frame| P2PD
