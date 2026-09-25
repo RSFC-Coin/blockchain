@@ -1,4 +1,5 @@
-<div align="center">                                                                      
+<div align="center">
+
 <h1>RFSC PROTOCOL SPECIFICATION AND REFERENCE NODE</h1>
 
 <p>Native Layer-1 Peer-to-Peer Settlement Ledger Implemented in RunForMe (RFM) AOT Core</p>
@@ -6,8 +7,10 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Runtime-RFM%20Native%20AOT-0969da?style=flat-square&logo=c" alt="Runtime" />
   <img src="https://img.shields.io/badge/Backend-LLVM%2023%20%2F%20Clang--23-24292f?style=flat-square&logo=llvm" alt="LLVM" />
-  <img src="https://img.shields.io/badge/Consensus-Dual--Tier%20PoUW%20AI-cf222e?style=flat-square" alt="PoUW" />                                                                     <img src="https://img.shields.io/badge/Ledger-NenoDB%20Ring--WAL-1a7f37?style=flat-square" alt="NenoDB" />
-  <img src="https://img.shields.io/badge/Crypto-secp256k1%20%7C%20Blake3-8250df?style=flat-square" alt="Crypto" />                                                                    <img src="https://img.shields.io/badge/Test%20Suites-8%20Passed%20%7C%20100%25-brightgreen?style=flat-square" alt="Tests" />
+  <img src="https://img.shields.io/badge/Consensus-Dual--Tier%20PoUW%20AI-cf222e?style=flat-square" alt="PoUW" />
+  <img src="https://img.shields.io/badge/Ledger-NenoDB%20Ring--WAL-1a7f37?style=flat-square" alt="NenoDB" />
+  <img src="https://img.shields.io/badge/Crypto-secp256k1%20%7C%20Blake3-8250df?style=flat-square" alt="Crypto" />
+  <img src="https://img.shields.io/badge/Test%20Suites-8%20Passed%20%7C%20100%25-brightgreen?style=flat-square" alt="Tests" />
 </p>
 
 <table align="center">
@@ -46,50 +49,98 @@
 
 <h2>2. COMPONENT ARCHITECTURE SCHEMATIC</h2>
 
-```mermaid
-flowchart TD
-    subgraph INGRESS ["Ingress Transport"]
-        CLIENT["RPC Clients / Exchanges"]
-        P2P_NET["P2P Network (TCP 8333, Magic 0x52465343)"]
-        RPC_API["JSON-RPC 2.0 API (TCP 8332)"]
-    end
+<pre>
+                                  ┌───────────────────────────────────┐
+                                  │      RFSC ROOT PROTOCOL NODE      │
+                                  │       RunForMe Native Core        │
+                                  └─────────────────┬─────────────────┘
+                                                    │
+                 ┌──────────────────────────────────┴──────────────────────────────────┐
+                 │                                                                     │
+                 ▼                                                                     ▼
+   ┌───────────────────────────┐                                         ┌───────────────────────────┐
+   │    INGRESS NETWORK TREE   │                                         │    STATE &amp; STORAGE TREE   │
+   └─────────────┬─────────────┘                                         └─────────────┬─────────────┘
+                 │                                                                     │
+        ┌────────┴────────┐                                                   ┌────────┴────────┐
+        │                 │                                                   │                 │
+        ▼                 ▼                                                   ▼                 ▼
+ ┌─────────────┐   ┌─────────────┐                                     ┌─────────────┐   ┌─────────────┐
+ │  JSON-RPC   │   │  P2P WIRE   │                                     │  NenoDB WAL │   │  RAM UTXO   │
+ │  TCP 8332   │   │  TCP 8333   │                                     │ 64KB Buffer │   │ Zero-IO Pin │
+ └──────┬──────┘   └──────┬──────┘                                     └──────┬──────┘   └──────┬──────┘
+        │                 │                                                   │                 │
+        └────────┬────────┘                                                   └────────┬────────┘
+                 │                                                                     │
+                 ▼                                                                     ▼
+   ┌───────────────────────────┐                                         ┌───────────────────────────┐
+   │    TRANSACTION PIPELINE   │                                         │    TREASURY VAULT ROOT    │
+   └─────────────┬─────────────┘                                         │ 100M Roc Payout Threshold │
+                 │                                                       └───────────────────────────┘
+        ┌────────┼────────┐                                                            ▲
+        │        │        │                                                            │
+        ▼        ▼        ▼                                                            │
+ ┌──────────┐ ┌────┐ ┌──────────┐                                                      │
+ │ secp256k1│ │ ZK │ │ Active   │                                                      │
+ │ ECDSA Sig│ │ Ped│ │ UTXO Chk │                                                      │
+ └────┬─────┘ └─┬──┘ └───┬──────┘                                                      │
+      │         │        │                                                             │
+      └─────────┼────────┘                                                             │
+                │                                                                      │
+                ▼                                                                      │
+   ┌───────────────────────────┐                                                       │
+   │    MEMPOOL FEE QUEUE      │                                                       │
+   │ Dynamic Priority Sorting  │                                                       │
+   └─────────────┬─────────────┘                                                       │
+                 │                                                                     │
+                 ▼                                                                     │
+   ┌───────────────────────────┐                                                       │
+   │   CONSENSUS MINING TREE   │                                                       │
+   └─────────────┬─────────────┘                                                       │
+                 │                                                                     │
+        ┌────────┴────────┬───────────────────────┐                                    │
+        │                 │                       │                                    │
+        ▼                 ▼                       ▼                                    │
+ ┌─────────────┐   ┌─────────────┐         ┌─────────────┐                             │
+ │BlockTemplate│   │ Tensor PoUW │         │Cluster Tree │                             │
+ │ Merkle Tree │   │ NumRFM GEMM │         │ Coordinator │                             │
+ └──────┬──────┘   │  GELU Trace │         └──────┬──────┘                             │
+        │          └──────┬──────┘                │                                    │
+        │                 │            ┌──────────┼──────────┐                         │
+        │                 │            │          │          │                         │
+        │                 │            ▼          ▼          ▼                         │
+        │                 │       ┌─────────┐┌─────────┐┌─────────┐                    │
+        │                 │       │ Rig-01  ││ Rig-02  ││ Rig-03  │                    │
+        │                 │       │ Nonce A ││ Nonce B ││ Nonce C │                    │
+        │                 │       └────┬────┘└────┬────┘└────┬────┘                    │
+        │                 │            └──────────┼──────────┘                         │
+        └────────┬────────┴───────────────────────┘                                    │
+                 │                                                                     │
+                 ▼                                                                     │
+   ┌───────────────────────────┐                                                       │
+   │   TARGET EVALUATION FORK  │                                                       │
+   └─────────────┬─────────────┘                                                       │
+                 │                                                                     │
+        ┌────────┴────────┐                                                            │
+        │                 │                                                            │
+  Hash &gt; Target     Hash &lt;= Target                                                     │
+  (Work Rejected)   (Block Sealed)                                                     │
+        │                 │                                                            │
+        ▼                 ▼                                                            │
+ ┌─────────────┐   ┌───────────────────────────────────────────────────────────────────┴───┐
+ │ Next Nonce  │   │ 1. Broadcast Block Gossip to P2P Wire (Port 8333)                     │
+ │ Partition   │   │ 2. Append Sealed Block to NenoDB WAL Replay Log                       │
+ └─────────────┘   │ 3. Update RAM-Pinned UTXO Set State Cache                             │
+                   │ 4. Credit Miner Balance to Master Treasury Vault                      │
+                   └───────────────────────────────────────────────────────────────────────┘
+</pre>
 
-    subgraph MEMPOOL_SYS ["Mempool Subsystem"]
-        TX_VAL["Transaction Validator (ECDSA secp256k1)"]
-        TX_POOL["Mempool Queue (Fee-Priority Ordering)"]
-    end
-
-    subgraph CONSENSUS_SYS ["Consensus and PoUW Engine"]
-        BLOCK_TMPL["Block Template Assembler"]
-        POUW_TENSOR["PoUW Compute (NumRFM GEMM + GELU Checksum)"]
-        DIFF_EVAL["Difficulty Target Evaluator"]
-    end
-
-    subgraph LEDGER_SYS ["Storage and Ledger State"]
-        WAL_ENGINE["NenoDB Ring-Buffered WAL (64KB Disk Journal)"]
-        UTXO_STATE["Active UTXO Set (Zero-IO RAM Pinning)"]
-        TREASURY_VAULT["Master Treasury Vault (100M Roc Settlement)"]
-    end
-
-    CLIENT -->|HTTP JSON-RPC| RPC_API
-    P2P_NET -->|Binary Wire Payload| TX_VAL
-    RPC_API -->|Raw Transaction| TX_VAL
-    TX_VAL -->|Validated Transaction| TX_POOL
-    TX_POOL -->|Candidate Tx Batch| BLOCK_TMPL
-    BLOCK_TMPL -->|Block Candidate| POUW_TENSOR
-    POUW_TENSOR -->|ai_loss_checksum + Header| DIFF_EVAL
-    DIFF_EVAL -->|Valid Block Proof| WAL_ENGINE
-    DIFF_EVAL -->|Gossip Broadcast| P2P_NET
-    WAL_ENGINE -->|Atomic State Update| UTXO_STATE
-    WAL_ENGINE -->|Miner Subsidy Credit| TREASURY_VAULT
-```
-
-| Pipeline Stage | Subsystem Modules | Core Operations | Output Artifact |
+| Tree Topology Branch | Subsystem Modules | Core Technical Operations | Operational Artifact |
 | :--- | :--- | :--- | :--- |
-| Ingress Transport | src/net/p2p_socket.rfm, src/rpc_server.rfm | Linux non-blocking socket polling, JSON-RPC 2.0 dispatch | Deserialized transaction and block payloads |
-| Verification Engine | src/transaction.rfm, src/crypto.rfm, src/mempool.rfm | secp256k1 ECDSA verification, UTXO double-spend check | Validated transactions ordered by fee density |
-| Consensus Engine | src/core.rfm, src/consensus/pouw_dual.rfm | Candidate header assembly, NumRFM GEMM tensor trace, difficulty test | Sealed block header with ai_loss_checksum |
-| Persistence Engine | src/utxo_set.rfm, NenoDB WAL Engine | Ring-buffered WAL disk append, in-memory RAM pinning via pin() | ACID-committed UTXO state and treasury ledger |
+| Ingress Network Tree | src/net/p2p_socket.rfm, src/rpc_server.rfm | Linux non-blocking socket polling, JSON-RPC 2.0 dispatch | Deserialized transaction and block payloads |
+| Verification Tree | src/transaction.rfm, src/crypto.rfm, src/mempool.rfm | secp256k1 ECDSA verification, UTXO double-spend check | Validated transactions ordered by fee density |
+| Consensus Mining Tree | src/core.rfm, src/consensus/pouw_dual.rfm | Candidate header assembly, NumRFM GEMM tensor trace, difficulty test | Sealed block header with ai_loss_checksum |
+| State & Storage Tree | src/utxo_set.rfm, NenoDB WAL Engine | Ring-buffered WAL disk append, in-memory RAM pinning via pin() | ACID-committed UTXO state and treasury ledger |
 
 ---
 
