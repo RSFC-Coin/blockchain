@@ -1,7 +1,5 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/github/explore/main/topics/blockchain/blockchain.png" width="96" height="96" alt="RFSC Logo" />
-
 <h1>RFSC PROTOCOL SPECIFICATION AND REFERENCE NODE</h1>
 
 <p>Native Layer-1 Peer-to-Peer Settlement Ledger Implemented in RunForMe (RFM) AOT Core</p>
@@ -51,9 +49,51 @@
 
 <h2>2. COMPONENT ARCHITECTURE SCHEMATIC</h2>
 
-<p align="center">
-  <img src="docs/architecture.png" alt="RFSC Node Component Architecture" width="100%" />
-</p>
+```mermaid
+flowchart TD
+    subgraph NET["Ingress and Wire Protocol"]
+        WIRE["P2P TCP Wire Framing<br/>Magic: 0x52465343"]
+        RPC["JSON-RPC 2.0 Daemon<br/>Port 8332 HTTP"]
+        MEM["Mempool Queue<br/>Double-Spend Validation"]
+    end
+
+    subgraph CORE["Consensus and PoUW AI Kernel"]
+        T1["Tier 1 Micro-Batch Nonce<br/>NumRFM GEMM (W x X) + GELU"]
+        T2["Tier 2 Macro-Epoch Checkpoint<br/>Transformer MHA (2 Heads) + RMSNorm"]
+        RETARGET["Difficulty Adjustment<br/>2,016 Blocks Target Retargeting"]
+    end
+
+    subgraph CRYPTO["Cryptographic Primitives"]
+        SECP["secp256k1 Curve Engine<br/>32B Private Key / 33B Pubkey"]
+        BECH["Bech32 BIP-173 Format<br/>HRP Prefix: rfsc1"]
+        ZK["Zero-Knowledge Pedersen<br/>C = v*G + r*H Masking"]
+        DIGEST["Blake3 + SHA-256d Engine<br/>ai_loss_checksum Validation"]
+    end
+
+    subgraph STORAGE["Storage Subsystem: NenoDB WAL"]
+        WAL["64KB Ring-Buffered WAL<br/>Zero-Fsync Sequential Writes"]
+        UTXO["RAM-Pinned UTXO Set<br/>Zero-I/O In-Memory pin()"]
+        VAULT["Master Treasury Vault<br/>100M Roc (1 RFSC) Threshold"]
+    end
+
+    subgraph CLUSTER["Multi-Worker Mining Cluster"]
+        COORD["Mining Coordinator Node<br/>Nonce Space Partitioning"]
+        W1["Worker Node A<br/>Range 0x0000..0x3FFF"]
+        W2["Worker Node B<br/>Range 0x4000..0x7FFF"]
+        W3["Worker Node C<br/>Range 0x8000..0xBFFF"]
+    end
+
+    WIRE <--> CORE
+    RPC --> MEM
+    MEM --> CORE
+    CORE <--> CRYPTO
+    CORE <--> STORAGE
+    COORD --> CORE
+    COORD --> W1
+    COORD --> W2
+    COORD --> W3
+    STORAGE --> VAULT
+```
 
 | Architectural Subsystem | Internal Components | Inter-Module Communication | Functional Mechanics |
 | :--- | :--- | :--- | :--- |
