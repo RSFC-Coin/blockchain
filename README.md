@@ -1,13 +1,14 @@
-<div align="center">                                                                      
+<div align="center">
+
 <h1>RFSC PROTOCOL SPECIFICATION AND REFERENCE NODE</h1>
 
 <p>Native Layer-1 Peer-to-Peer Settlement Ledger Implemented in RunForMe (RFM) AOT Core</p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Runtime-RFM%20Native%20AOT-0969da?style=flat-square&logo=c" alt="Runtime" />
-  <img src="https://img.shields.io/badge/Backend-LLVM%2023%20%2F%20Clang--23-24292f?style=flat-square&logo=llvm" alt="LLVM" />
-  <img src="https://img.shields.io/badge/Consensus-Dual--Tier%20PoUW%20AI-cf222e?style=flat-square" alt="PoUW" />                                                                     <img src="https://img.shields.io/badge/Ledger-NenoDB%20Ring--WAL-1a7f37?style=flat-square" alt="NenoDB" />
-  <img src="https://img.shields.io/badge/Crypto-secp256k1%20%7C%20Blake3-8250df?style=flat-square" alt="Crypto" />                                                                    <img src="https://img.shields.io/badge/Test%20Suites-8%20Passed%20%7C%20100%25-brightgreen?style=flat-square" alt="Tests" />
+  <img src="https://img.shields.io/badge/Backend-LLVM%2023%20%2F%20Clang--23-24292f?style=flat-square&logo=llvm" alt="LLVM" />                                                        <img src="https://img.shields.io/badge/Consensus-Dual--Tier%20PoUW%20AI-cf222e?style=flat-square" alt="PoUW" />
+  <img src="https://img.shields.io/badge/Ledger-NenoDB%20Ring--WAL-1a7f37?style=flat-square" alt="NenoDB" />                                                                          <img src="https://img.shields.io/badge/Crypto-secp256k1%20%7C%20Blake3-8250df?style=flat-square" alt="Crypto" />
+  <img src="https://img.shields.io/badge/Test%20Suites-8%20Passed%20%7C%20100%25-brightgreen?style=flat-square" alt="Tests" />
 </p>
 
 <table align="center">
@@ -48,56 +49,40 @@
 
 ```mermaid
 flowchart TD
-    classDef ingress fill:midnightblue,stroke:cyan,stroke-width:2px,color:white
-    classDef txpipe fill:indigo,stroke:orchid,stroke-width:2px,color:white
-    classDef consensus fill:darkgreen,stroke:springgreen,stroke-width:2px,color:white
-    classDef storage fill:darkslategray,stroke:gold,stroke-width:2px,color:white
-    classDef check fill:navy,stroke:gold,stroke-width:2px,color:white
-
-    subgraph INGRESS ["1. Network and Client Ingress"]
-        CLIENT["RPC Client or Exchange"]:::ingress
-        PEER["Remote P2P Peer"]:::ingress
-        RPCD["JSON-RPC 2.0 Server: Port 8332"]:::ingress
-        P2PD["P2P Wire Socket: Port 8333 Magic 0x52465343"]:::ingress
+    subgraph INGRESS ["Ingress Transport"]
+        CLIENT["RPC Clients / Exchanges"]
+        P2P_NET["P2P Network (TCP 8333, Magic 0x52465343)"]
+        RPC_API["JSON-RPC 2.0 API (TCP 8332)"]
     end
 
-    subgraph TXPIPE ["2. Transaction Processing Engine"]
-        UTXOCHK{"UTXO Lookup: Inputs Exist?"}:::check
-        SIGCHK{"ECDSA secp256k1: Valid Signature?"}:::check
-        MEMPOOL[("Mempool Queue: Fee-per-Byte Sort")]:::txpipe
+    subgraph MEMPOOL_SYS ["Mempool Subsystem"]
+        TX_VAL["Transaction Validator (ECDSA secp256k1)"]
+        TX_POOL["Mempool Queue (Fee-Priority Ordering)"]
     end
 
-    subgraph CONSENSUS ["3. PoUW Block Generation and Consensus"]
-        TEMPL["Block Template: Merkle Root + PrevHash"]:::consensus
-        WORKER["Cluster Worker: Nonce Sub-Range Search"]:::consensus
-        TENSOR["PoUW Execution: NumRFM GEMM + GELU Checksum"]:::consensus
-        HASHCHK{"PoW Check: Block Hash meets Target?"}:::check
+    subgraph CONSENSUS_SYS ["Consensus and PoUW Engine"]
+        BLOCK_TMPL["Block Template Assembler"]
+        POUW_TENSOR["PoUW Compute (NumRFM GEMM + GELU Checksum)"]
+        DIFF_EVAL["Difficulty Target Evaluator"]
     end
 
-    subgraph STORAGE ["4. Ledger Persistence and State"]
-        WAL[("NenoDB Ring-Buffered WAL: 64KB Disk Log")]:::storage
-        UTXO[("Active UTXO Set: RAM-Pinned Zero-IO Cache")]:::storage
-        TREASURY[("Master Treasury: 100M Roc Settlement Gate")]:::storage
+    subgraph LEDGER_SYS ["Storage and Ledger State"]
+        WAL_ENGINE["NenoDB Ring-Buffered WAL (64KB Disk Journal)"]
+        UTXO_STATE["Active UTXO Set (Zero-IO RAM Pinning)"]
+        TREASURY_VAULT["Master Treasury Vault (100M Roc Settlement)"]
     end
 
-    CLIENT -->|JSON-RPC Request| RPCD
-    PEER -->|Binary Wire Frame| P2PD
-    RPCD -->|Parsed Tx| UTXOCHK
-    P2PD -->|Relayed Tx| UTXOCHK
-    UTXOCHK -->|Inputs Present| SIGCHK
-    SIGCHK -->|Valid Signature| MEMPOOL
-
-    MEMPOOL -->|Select Transactions| TEMPL
-    TEMPL -->|Candidate Block Header| WORKER
-    WORKER -->|Compute Workload| TENSOR
-    TENSOR -->|ai_loss_checksum| HASHCHK
-
-    HASHCHK -->|Target Not Met| WORKER
-    HASHCHK -->|Target Met: Propagate| P2PD
-    HASHCHK -->|Target Met: Commit| WAL
-
-    WAL -->|State Sync| UTXO
-    WAL -->|Miner Subsidy| TREASURY
+    CLIENT -->|HTTP JSON-RPC| RPC_API
+    P2P_NET -->|Binary Wire Payload| TX_VAL
+    RPC_API -->|Raw Transaction| TX_VAL
+    TX_VAL -->|Validated Transaction| TX_POOL
+    TX_POOL -->|Candidate Tx Batch| BLOCK_TMPL
+    BLOCK_TMPL -->|Block Candidate| POUW_TENSOR
+    POUW_TENSOR -->|ai_loss_checksum + Header| DIFF_EVAL
+    DIFF_EVAL -->|Valid Block Proof| WAL_ENGINE
+    DIFF_EVAL -->|Gossip Broadcast| P2P_NET
+    WAL_ENGINE -->|Atomic State Update| UTXO_STATE
+    WAL_ENGINE -->|Miner Subsidy Credit| TREASURY_VAULT
 ```
 
 | Pipeline Stage | Subsystem Modules | Core Operations | Output Artifact |
